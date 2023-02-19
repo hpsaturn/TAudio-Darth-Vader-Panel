@@ -62,11 +62,16 @@ void radio(String opts) {
 }
 
 void mp3 (String opts){
+  String path = maschinendeck::SerialTerminal::ParseArgument(opts);
+  if (path.length() == 0) {
+    Serial.println("Please enter a valid path on the SD");
+    return;
+  }
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
-  String path = operands.first();
-  // audio.connecttoFS(SD, path.c_str());
+  // String path = operands.first();
   audio.setVolume(21);
-  audio.connecttoFS(SD, "/mp3/zerg_online_alert.mp3");
+  // audio.connecttoFS(SD, "/mp3/zerg_online_alert.mp3");
+  audio.connecttoFS(SD, path.c_str());
   dac.setSPKvol(50);         // for board speaker output (Max 63).
   dac.setHPvol(50, 50);  // for headphone jack left, right channel.
 }
