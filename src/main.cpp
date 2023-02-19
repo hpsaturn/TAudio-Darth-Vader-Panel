@@ -11,27 +11,6 @@ bool setup_mode = false;
 int setup_time = 10000;
 bool first_run = true;
 
-/*********************************************************************
- * Optional callback.
- ********************************************************************/
-class mESP32WifiCLICallbacks : public ESP32WifiCLICallbacks {
-  void onWifiStatus(bool isConnected) {
-  }
-
-  void onHelpShow() {
-    // Enter your custom help here:
-    Serial.println("\r\nCustom commands:\r\n");
-    Serial.println("sleep <mode> <time> \tESP32 sleep mode (deep or light)");
-    Serial.println("echo \"message\" \t\tEcho the msg. Parameter into quotes");
-    Serial.println("setLED <PIN> \t\tconfig the LED GPIO for blink");
-    Serial.println("blink <times> <millis> \tLED blink x times each x millis");
-    Serial.println("reboot\t\t\tperform a soft ESP32 reboot");
-  }
-
-  void onNewWifi(String ssid, String passw) {
-  }
-};
-
 void gotToSuspend(int type, int seconds) {
     delay(8);  // waiting for writing msg on serial
     //esp_deep_sleep(1000000LL * DEEP_SLEEP_DURATION);
@@ -70,15 +49,27 @@ void blink(String opts) {
 }
 
 void radio(String opts) {
-  // WiFi Settings here.
+  maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
+  int volume = operands.first().toInt();
   ESP_LOGI(TAG, "Connected. Starting MP3...");
-  // Enter your Icecast station URL here.
   audio.setVolume(21);
   audio.connecttohost("http://hestia2.cdnstream.com/1458_128");
+
   // Volume control.
-  dac.setSPKvol(30); // Change volume here for board speaker output (Max 63).
-  dac.setHPvol(50, 50); // Change volume here for headphone jack left, right channel.
-}  
+  volume = volume > 63 || volume == 0 ? 50 : volume;
+  dac.setSPKvol(volume);         // for board speaker output (Max 63).
+  dac.setHPvol(volume, volume);  // for headphone jack left, right channel.
+}
+
+void mp3 (String opts){
+  maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
+  String path = operands.first();
+  // audio.connecttoFS(SD, path.c_str());
+  audio.setVolume(21);
+  audio.connecttoFS(SD, "/mp3/zerg_online_alert.mp3");
+  dac.setSPKvol(50);         // for board speaker output (Max 63).
+  dac.setHPvol(50, 50);  // for headphone jack left, right channel.
+}
 
 void reboot(String opts){
   ESP.restart();
@@ -102,8 +93,6 @@ void setup() {
   guiInit();            // Initialize LED stripe to off
   initAudio();          // Audio drivers only
 
-  wcli.setCallback(new mESP32WifiCLICallbacks());
-  // wcli.disableConnectInBoot();
   wcli.setSilentMode(true);
   wcli.begin();         // Alternatively, you can init with begin(115200) 
 
@@ -112,6 +101,7 @@ void setup() {
   wcli.term->add("reboot", &reboot,   "\tperform a ESP32 reboot");
   wcli.term->add("blink", &blink,     "\t<brightness> Adafruit LEDs demo");
   wcli.term->add("radio", &radio,     "\tstarting radio broadcast demo");
+  wcli.term->add("mp3", &mp3,     "\t<path> play mp3 from path");
   wcli.term->add("exit", &wcli_exit,  "\texit of the setup mode. AUTO EXIT in 10 seg! :)");
   wcli.term->add("setup", &wcli_setup,"\tTYPE THIS WORD to start to configure the device :D\n");
 

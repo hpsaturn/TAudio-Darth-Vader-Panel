@@ -13,6 +13,17 @@
 // T-Audio 1.6 WM8978 MCLK gpio number
 #define I2S_MCLKPIN  0
 
+#include "SD.h"
+#include "SPI.h"
+#include "FS.h"
+#include "Ticker.h"
+
+// Digital I/O used
+#define SD_CS         13
+#define SPI_MOSI      15
+#define SPI_MISO      2
+#define SPI_SCK       14
+
 Audio audio;
 WM8978 dac;
 
@@ -55,7 +66,8 @@ void initAudio() {
     ESP_LOGE(TAG, "Error setting up dac: System halted.");
     while (1) delay(100);
   }
-
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+  SD.begin(SD_CS);
   // Select I2S pins
   audio.setPinout(I2S_BCK, I2S_WS, I2S_DOUT);
   audio.i2s_mclk_pin_select(I2S_MCLKPIN);
