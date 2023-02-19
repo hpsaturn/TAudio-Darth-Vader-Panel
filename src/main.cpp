@@ -1,5 +1,6 @@
 // Required Libraries (Download zips and add to the Arduino IDE library).
 #include "Arduino.h"
+#include <ESP32WifiCLI.hpp>
 #include <WM8978.h> // https://github.com/CelliesProjects/wm8978-esp32
 #include <Audio.h>  // https://github.com/schreibfaul1/ESP32-audioI2S
 
@@ -22,22 +23,102 @@
 Audio audio;
 WM8978 dac;
 
-void wifiInit() {
-  Serial.print("[WiFi] connecting to " + String(WIFI_SSID));
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  int wifi_retry = 0;
-  while (WiFi.status() != WL_CONNECTED && wifi_retry++ < WIFI_RETRY_CONNECTION) {
-    Serial.print(".");
-    delay(500);
+
+int LED_PIN = 13;
+bool setup_mode = false;
+int setup_time = 10000;
+bool first_run = true;
+
+/*********************************************************************
+ * Optional callback.
+ ********************************************************************/
+class mESP32WifiCLICallbacks : public ESP32WifiCLICallbacks {
+  void onWifiStatus(bool isConnected) {
+    if(isConnected) {
+      digitalWrite(LED_PIN, HIGH);
+    } else {
+      digitalWrite(LED_PIN, LOW);
+    }
   }
-  if (wifi_retry >= WIFI_RETRY_CONNECTION)
-    Serial.println(" failed!");
-  else
-    Serial.println(" connected!");
+
+  void onHelpShow() {
+    // Enter your custom help here:
+    Serial.println("\r\nCustom commands:\r\n");
+    Serial.println("sleep <mode> <time> \tESP32 sleep mode (deep or light)");
+    Serial.println("echo \"message\" \t\tEcho the msg. Parameter into quotes");
+    Serial.println("setLED <PIN> \t\tconfig the LED GPIO for blink");
+    Serial.println("blink <times> <millis> \tLED blink x times each x millis");
+    Serial.println("reboot\t\t\tperform a soft ESP32 reboot");
+  }
+
+  void onNewWifi(String ssid, String passw) {
+  }
+};
+
+void gotToSuspend(int type, int seconds) {
+    delay(8);  // waiting for writing msg on serial
+    //esp_deep_sleep(1000000LL * DEEP_SLEEP_DURATION);
+    esp_sleep_enable_timer_wakeup(1000000LL * seconds);
+    if (type == 0) esp_deep_sleep_start();
+    else esp_light_sleep_start(); 
+}
+
+void sleep(String opts) {
+  maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
+  int seconds = operands.second().toInt();
+  if(operands.first().equals("deep")) {
+    Serial.println("\ndeep suspending..");
+    gotToSuspend(0, seconds);
+  }
+  else if(operands.first().equals("light")) {
+    Serial.println("\nlight suspending..");
+    gotToSuspend(1, seconds);
+  }
+  else {
+    Serial.println("sleep: invalid option");
+  }
+}
+
+void blink(String opts) {
+  maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
+  int times = operands.first().toInt();
+  int miliseconds = operands.second().toInt();
+  for (int i = 0; i < times; i++) {
+    digitalWrite(LED_PIN, HIGH);
+    delay(miliseconds);
+    digitalWrite(LED_PIN, LOW);
+    delay(miliseconds);
+  }
+}
+
+void reboot(String opts){
+  ESP.restart();
+}
+
+void wcli_exit(String opts) {
+  setup_time = 0;
+  setup_mode = false;
+}
+
+void wcli_setup(String opts) {
+  setup_mode = true;
+  Serial.println("\r\nSetup Mode Enable (fail-safe mode)\r\n");
 }
 
 void setup() {
-    Serial.begin(115200);
+  Serial.begin(115200);
+  Serial.begin(115200); // Optional, you can init it on begin()
+  Serial.flush();       // Only for showing the message on serial 
+  delay(100);
+  wcli.setCallback(new mESP32WifiCLICallbacks());
+  wcli.disableConnectInBoot();
+  wcli.setSilentMode(true);
+  wcli.begin();         // Alternatively, you can init with begin(115200) 
+
+  // Enter your custom commands:
+  wcli.term->add("sleep", &sleep, "\t<mode> <time> ESP32 will enter to sleep mode");
+  wcli.term->add("blink", &blink, "\t<times> <millis> LED blink x times each x millis");
+  wcli.term->add("reboot", &reboot, "\tperform a ESP32 reboot");
 
   // Setup wm8978 I2C interface.
   if (!dac.begin(I2C_SDA, I2C_SCL)) {
@@ -50,7 +131,6 @@ void setup() {
   audio.i2s_mclk_pin_select(I2S_MCLKPIN);
 
   // WiFi Settings here.
-  wifiInit(); 
   ESP_LOGI(TAG, "Connected. Starting MP3...");
   // Enter your Icecast station URL here.
   audio.setVolume(21);
@@ -61,7 +141,7 @@ void setup() {
 }
 
 void loop() {
-  // Start the stream.
+  wcli.loop();
   audio.loop();
 }
 
