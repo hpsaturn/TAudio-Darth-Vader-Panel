@@ -11,6 +11,10 @@ bool setup_mode = false;
 int setup_time = 10000;
 bool first_run = true;
 
+bool touchDetected = false;
+void onTouchButton(){ touchDetected = true; }
+#define THRESHOLD 32
+
 void gotToSuspend(int type, int seconds) {
     delay(8);  // waiting for writing msg on serial
     //esp_deep_sleep(1000000LL * DEEP_SLEEP_DURATION);
@@ -69,11 +73,17 @@ void mp3 (String opts){
   }
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
   // String path = operands.first();
-  audio.setVolume(21);
   // audio.connecttoFS(SD, "/mp3/zerg_online_alert.mp3");
   audio.connecttoFS(SD, path.c_str());
-  dac.setSPKvol(50);         // for board speaker output (Max 63).
-  dac.setHPvol(50, 50);  // for headphone jack left, right channel.
+  
+}
+
+void processTouch(){
+  if (touchDetected){
+    touchDetected = false;
+    if(audio.isRunning()) return;
+    audio.connecttoFS(SD, "/vader/breathing.mp3");
+  }
 }
 
 void reboot(String opts){
@@ -121,9 +131,12 @@ void setup() {
   else
     Serial.println("==>[INFO] Time for initial setup over. Booting..\r\n");
 
+  touchAttachInterrupt(T0, onTouchButton, THRESHOLD);
+
 }
 
 void loop() {
   wcli.loop();
   audio.loop();
+  processTouch();
 }

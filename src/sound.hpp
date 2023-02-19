@@ -24,11 +24,29 @@
 #define SPI_MISO      2
 #define SPI_SCK       14
 
+#define SND_BTN_1     4
+
 Audio audio;
 WM8978 dac;
 
 
-// optional
+void initAudio() {
+  // Setup wm8978 I2C interface.
+  if (!dac.begin(I2C_SDA, I2C_SCL)) {
+    ESP_LOGE(TAG, "Error setting up dac: System halted.");
+    while (1) delay(100);
+  }
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+  SD.begin(SD_CS);
+  // Select I2S pins
+  audio.setPinout(I2S_BCK, I2S_WS, I2S_DOUT);
+  audio.i2s_mclk_pin_select(I2S_MCLKPIN);
+  audio.setVolume(21); 
+  dac.setSPKvol(50);     // for board speaker output (Max 63).
+  dac.setHPvol(50, 50);  // for headphone jack left, right channel.
+}
+
+optional
 void audio_info(const char *info){
     Serial.print("info        "); Serial.println(info);
 }
@@ -58,17 +76,4 @@ void audio_lasthost(const char *info){  //stream URL played
 }
 void audio_eof_speech(const char *info){
     Serial.print("eof_speech  ");Serial.println(info);
-}
-
-void initAudio() {
-  // Setup wm8978 I2C interface.
-  if (!dac.begin(I2C_SDA, I2C_SCL)) {
-    ESP_LOGE(TAG, "Error setting up dac: System halted.");
-    while (1) delay(100);
-  }
-  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
-  SD.begin(SD_CS);
-  // Select I2S pins
-  audio.setPinout(I2S_BCK, I2S_WS, I2S_DOUT);
-  audio.i2s_mclk_pin_select(I2S_MCLKPIN);
 }
