@@ -3,6 +3,7 @@
 #include <ESP32WifiCLI.hpp>
 #include <WM8978.h> // https://github.com/CelliesProjects/wm8978-esp32
 #include <Audio.h>  // https://github.com/schreibfaul1/ESP32-audioI2S
+#include <gui.hpp>
 
 // T-Audio 1.6 WM8978 I2C pins.
 #define I2C_SDA     19
@@ -24,7 +25,6 @@ Audio audio;
 WM8978 dac;
 
 
-int LED_PIN = 13;
 bool setup_mode = false;
 int setup_time = 10000;
 bool first_run = true;
@@ -34,11 +34,6 @@ bool first_run = true;
  ********************************************************************/
 class mESP32WifiCLICallbacks : public ESP32WifiCLICallbacks {
   void onWifiStatus(bool isConnected) {
-    if(isConnected) {
-      digitalWrite(LED_PIN, HIGH);
-    } else {
-      digitalWrite(LED_PIN, LOW);
-    }
   }
 
   void onHelpShow() {
@@ -81,14 +76,15 @@ void sleep(String opts) {
 
 void blink(String opts) {
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
-  int times = operands.first().toInt();
+  int bright = operands.first().toInt();
   int miliseconds = operands.second().toInt();
-  for (int i = 0; i < times; i++) {
-    digitalWrite(LED_PIN, HIGH);
-    delay(miliseconds);
-    digitalWrite(LED_PIN, LOW);
-    delay(miliseconds);
+  Serial.println("starting Adafruit demo..");
+
+  if (bright >0 && bright<=255) {
+    strip.setBrightness(bright);
+    Serial.printf("changed brightness to: %i\r\n", bright);
   }
+  guiDemo();
 }
 
 void reboot(String opts){
@@ -110,15 +106,31 @@ void setup() {
   Serial.begin(115200); // Optional, you can init it on begin()
   Serial.flush();       // Only for showing the message on serial 
   delay(100);
+  guiInit();            // Initialize LED stripe to off
   wcli.setCallback(new mESP32WifiCLICallbacks());
   wcli.disableConnectInBoot();
   wcli.setSilentMode(true);
   wcli.begin();         // Alternatively, you can init with begin(115200) 
 
-  // Enter your custom commands:
-  wcli.term->add("sleep", &sleep, "\t<mode> <time> ESP32 will enter to sleep mode");
-  wcli.term->add("blink", &blink, "\t<times> <millis> LED blink x times each x millis");
-  wcli.term->add("reboot", &reboot, "\tperform a ESP32 reboot");
+ // custom commands:
+  wcli.term->add("sleep", &sleep,     "\t<mode> <time> ESP32 will enter to sleep mode");
+  wcli.term->add("blink", &blink,     "\t<times> <millis> LED blink x times each x millis");
+  wcli.term->add("reboot", &reboot,   "\tperform a ESP32 reboot");
+  // setup mode commands:
+  wcli.term->add("exit", &wcli_exit,  "\texit of the setup mode. AUTO EXIT in 10 seg! :)");
+  wcli.term->add("setup", &wcli_setup,"\tTYPE THIS WORD to start to configure the device :D\n");
+
+  // Configuration loop in setup:
+  // 10 seconds for reconfiguration (first use case or fail-safe mode for example)
+  uint32_t start = millis();
+  while (setup_mode || (millis() - start < setup_time)) wcli.loop();
+  Serial.println();
+
+  if (setup_time == 0)
+    Serial.println("==>[INFO] Settings mode end. Booting..\r\n");
+  else
+    Serial.println("==>[INFO] Time for initial setup over. Booting..\r\n");
+
 
   // Setup wm8978 I2C interface.
   if (!dac.begin(I2C_SDA, I2C_SCL)) {
@@ -138,6 +150,7 @@ void setup() {
   // Volume control.
   dac.setSPKvol(30); // Change volume here for board speaker output (Max 63).
   dac.setHPvol(50, 50); // Change volume here for headphone jack left, right channel.
+  
 }
 
 void loop() {
