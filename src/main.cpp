@@ -1,6 +1,7 @@
 // Required Libraries (Download zips and add to the Arduino IDE library).
-#include "Arduino.h"
+#include <Arduino.h>
 #include <ESP32WifiCLI.hpp> 
+#include <OTAHandler.h>
 #include <gui.hpp>
 #include <sound.hpp>
 
@@ -13,7 +14,7 @@ bool first_run = true;
 
 bool touchDetected = false;
 void onTouchButton(){ touchDetected = true; }
-#define THRESHOLD 32
+int  touchThreshold = 32;
 
 void gotToSuspend(int type, int seconds) {
     delay(8);  // waiting for writing msg on serial
@@ -54,15 +55,13 @@ void blink(String opts) {
 
 void radio(String opts) {
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
+  String url = operands.first();
   int volume = operands.first().toInt();
   ESP_LOGI(TAG, "Connected. Starting MP3...");
-  audio.setVolume(21);
-  audio.connecttohost("http://hestia2.cdnstream.com/1458_128");
-
-  // Volume control.
-  volume = volume > 63 || volume == 0 ? 50 : volume;
-  dac.setSPKvol(volume);         // for board speaker output (Max 63).
-  dac.setHPvol(volume, volume);  // for headphone jack left, right channel.
+  if (url.isEmpty())
+    audio.connecttohost("http://hestia2.cdnstream.com/1458_128"); 
+  else
+    audio.connecttohost(url.c_str()); 
 }
 
 void mp3 (String opts){
@@ -72,10 +71,20 @@ void mp3 (String opts){
     return;
   }
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
-  // String path = operands.first();
-  // audio.connecttoFS(SD, "/mp3/zerg_online_alert.mp3");
   audio.connecttoFS(SD, path.c_str());
-  
+}
+
+void volume (String opts){
+  maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
+  int volume = operands.first().toInt();
+  // Volume control.
+  volume = volume > 63 || volume == 0 ? 50 : volume;
+  dac.setSPKvol(volume);         // for board speaker output (Max 63).
+  dac.setHPvol(volume, volume);  // for headphone jack left, right channel.
+}
+
+void stop (String opts){
+  audio.stopSong();
 }
 
 void processTouch(){
@@ -115,8 +124,10 @@ void setup() {
   wcli.term->add("sleep", &sleep,     "\t<mode> <time> ESP32 will enter to sleep mode");
   wcli.term->add("reboot", &reboot,   "\tperform a ESP32 reboot");
   wcli.term->add("blink", &blink,     "\t<brightness> Adafruit LEDs demo");
-  wcli.term->add("radio", &radio,     "\tstarting radio broadcast demo");
-  wcli.term->add("mp3", &mp3,     "\t<path> play mp3 from path");
+  wcli.term->add("vol", &volume,      "\t<0-63> update volume of sound driver");
+  wcli.term->add("radio", &radio,     "\t<optional url> starting radio broadcast demo");
+  wcli.term->add("mp3", &mp3,         "\t<path> play mp3 from path");
+  wcli.term->add("stop", &stop,         "\tstop song playback");
   wcli.term->add("exit", &wcli_exit,  "\texit of the setup mode. AUTO EXIT in 10 seg! :)");
   wcli.term->add("setup", &wcli_setup,"\tTYPE THIS WORD to start to configure the device :D\n");
 
@@ -131,12 +142,15 @@ void setup() {
   else
     Serial.println("==>[INFO] Time for initial setup over. Booting..\r\n");
 
-  touchAttachInterrupt(T0, onTouchButton, THRESHOLD);
-
+  ota.setup("VATERP", "VATER32");
+  delay(100);
+  
+  touchAttachInterrupt(T0, onTouchButton, touchThreshold);
 }
 
 void loop() {
   wcli.loop();
   audio.loop();
   processTouch();
+  ota.loop();
 }
