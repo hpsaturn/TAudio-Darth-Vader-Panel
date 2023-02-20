@@ -17,7 +17,7 @@ class OTAHandler {
         int _baud;
 };
 
-class OTAHandlerCallbacks {
+class  OTAHandlerCallbacks {
 public:
     virtual ~OTAHandlerCallbacks() {};
     virtual void onStart();

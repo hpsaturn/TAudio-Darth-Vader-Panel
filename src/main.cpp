@@ -16,6 +16,7 @@
 #include <sound.hpp>
 #include <effects.hpp>
 #include <power.hpp>
+#include <ota.hpp>
 
 int volume = 17;
 
@@ -86,6 +87,7 @@ void stop (String opts){
 void processTouch(){
   if (touchDetected){
     touchDetected = false;
+    cancelShutdown();
     if(audio.isRunning()) return;
     String effect = effects[random(EFCOUNT)];
     String path = EFFECTDIR + effect;
@@ -106,40 +108,44 @@ void wcli_setup(String opts) {
 }
 
 void setup() {
-  Serial.begin(115200);
   Serial.begin(115200); // Optional, you can init it on begin()
   Serial.flush();       // Only for showing the message on serial 
-  delay(200);
   initAudio();          // Audio drivers only
   guiInit();            // Initialize LED stripe to off
+  delay(100);
 
+  wcli.disableConnectInBoot(); 
   wcli.setSilentMode(true);
   wcli.begin();         // Alternatively, you can init with begin(115200) 
 
  // custom commands:
-  wcli.term->add("sleep", &sleep,     "\t<mode> <time> ESP32 will enter to sleep mode");
-  wcli.term->add("reboot", &reboot,   "\tperform a ESP32 reboot");
-  wcli.term->add("blink", &blink,     "\t<brightness> Adafruit LEDs demo");
-  wcli.term->add("vol", &setVol,      "\t<0-63> update volume of sound driver");
-  wcli.term->add("radio", &radio,     "\t<optional url> starting radio broadcast demo");
-  wcli.term->add("mp3", &mp3,         "\t<path> play mp3 from path. Into quotes");
-  wcli.term->add("stop", &stop,       "\tstop song playback.");
-  wcli.term->add("touchth", &touchth,       "\t<int 0-40> touch button threshold.");
-  wcli.term->add("exit", &wcli_exit,  "\texit of the setup mode. AUTO EXIT in 10 seg! :)");
-  wcli.term->add("setup", &wcli_setup,"\tTYPE THIS WORD to start to configure the device :D\n");
+  wcli.term->add("sleep", &sleep,            "\t<mode> <time> ESP32 will enter to sleep mode");
+  wcli.term->add("dsoff", &dsoff,            "\tcancel auto-sleep");
+  wcli.term->add("reboot", &reboot,          "\tperform a ESP32 reboot");
+  wcli.term->add("blink", &blink,            "\t<brightness> Adafruit LEDs demo");
+  wcli.term->add("vol", &setVol,             "\t<0-63> update volume of sound driver");
+  wcli.term->add("radio", &radio,            "\t<optional url> starting radio broadcast demo");
+  wcli.term->add("mp3", &mp3,                "\t<path> play mp3 from path. Into quotes");
+  wcli.term->add("stop", &stop,              "\tstop song playback.");
+  wcli.term->add("touchth", &touchth,        "\t<int 0-40> touch button threshold.");
+  wcli.term->add("exit", &wcli_exit,         "\texit of the setup mode. AUTO EXIT in 10 seg! :)");
+  wcli.term->add("setup", &wcli_setup,       "\tTYPE THIS WORD to start to configure the device :D\n");
 
   // Configuration loop in setup:
   // 10 seconds for reconfiguration (first use case or fail-safe mode for example)
-  uint32_t start = millis();
-  while (setup_mode || (millis() - start < setup_time)) wcli.loop();
-  Serial.println();
+  // uint32_t start = millis();
+  // while (setup_mode || (millis() - start < setup_time)) wcli.loop();
+  // Serial.println();
 
-  if (setup_time == 0)
-    Serial.println("==>[INFO] Settings mode end. Booting..");
-  else
-    Serial.println("==>[INFO] Time for initial setup over. Booting..");
+  // if (setup_time == 0)
+  //   Serial.println("==>[INFO] Settings mode end. Booting..");
+  // else
+  //   Serial.println("==>[INFO] Time for initial setup over. Booting..");
 
+  delay(100);
+  ota.setCallbacks(new mOTACallbacks());
   ota.setup("VATERP", "VATER32"); 
+
   delay(100);
 
   touchThreshold = wcli.getInt("touchth", 27);
@@ -152,4 +158,5 @@ void loop() {
   wcli.loop();
   ota.loop();
   processTouch();
+  processShutdown();
 }
