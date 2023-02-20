@@ -41,9 +41,7 @@ void initAudio() {
   // Select I2S pins
   audio.setPinout(I2S_BCK, I2S_WS, I2S_DOUT);
   audio.i2s_mclk_pin_select(I2S_MCLKPIN);
-  audio.setVolume(21); 
-  dac.setSPKvol(50);     // for board speaker output (Max 63).
-  dac.setHPvol(50, 50);  // for headphone jack left, right channel.
+  delay (200);
 }
 
 // optional methods (we could comment this)

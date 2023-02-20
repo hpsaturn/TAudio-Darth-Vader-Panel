@@ -8,6 +8,7 @@
 
 #define TAG "WM8978"
 
+int volume = 50;
 
 bool setup_mode = false;
 int setup_time = 10000;
@@ -54,11 +55,18 @@ void blink(String opts) {
   guiDemo();
 }
 
+void loadVolume() {
+  audio.setVolume(21); 
+  dac.setSPKvol(volume);     // for board speaker output (Max 63).
+  dac.setHPvol(volume, volume);  // for headphone jack left, right channel.
+}
+
 void radio(String opts) {
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
   String url = operands.first();
   int volume = operands.first().toInt();
   ESP_LOGI(TAG, "Connected. Starting MP3...");
+  loadVolume();
   if (url.isEmpty())
     audio.connecttohost("http://hestia2.cdnstream.com/1458_128"); 
   else
@@ -72,16 +80,16 @@ void mp3 (String opts){
     return;
   }
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
+  loadVolume();
   audio.connecttoFS(SD, path.c_str());
 }
 
-void volume (String opts){
+void setVol (String opts){
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
-  int volume = operands.first().toInt();
+  volume = operands.first().toInt();
   // Volume control.
   volume = volume > 63 || volume == 0 ? 50 : volume;
-  dac.setSPKvol(volume);         // for board speaker output (Max 63).
-  dac.setHPvol(volume, volume);  // for headphone jack left, right channel.
+  loadVolume();
 }
 
 void stop (String opts){
@@ -92,12 +100,10 @@ void processTouch(){
   if (touchDetected){
     touchDetected = false;
     if(audio.isRunning()) return;
-    audio.setVolume(21);  
     String effect = effects[random(EFCOUNT)];
     String path = EFFECTDIR + effect;
+    loadVolume();
     audio.connecttoFS(SD, path.c_str());
-    dac.setSPKvol(50);     // for board speaker output (Max 63).
-    dac.setHPvol(50, 50);  // for headphone jack left, right channel.
   }
 }
 
@@ -119,10 +125,9 @@ void setup() {
   Serial.begin(115200);
   Serial.begin(115200); // Optional, you can init it on begin()
   Serial.flush();       // Only for showing the message on serial 
-  delay(100);
+  delay(200);
   guiInit();            // Initialize LED stripe to off
   initAudio();          // Audio drivers only
-  randomSeed(analogRead(0));
 
   wcli.setSilentMode(true);
   wcli.begin();         // Alternatively, you can init with begin(115200) 
@@ -131,7 +136,7 @@ void setup() {
   wcli.term->add("sleep", &sleep,     "\t<mode> <time> ESP32 will enter to sleep mode");
   wcli.term->add("reboot", &reboot,   "\tperform a ESP32 reboot");
   wcli.term->add("blink", &blink,     "\t<brightness> Adafruit LEDs demo");
-  wcli.term->add("vol", &volume,      "\t<0-63> update volume of sound driver");
+  wcli.term->add("vol", &setVol,      "\t<0-63> update volume of sound driver");
   wcli.term->add("radio", &radio,     "\t<optional url> starting radio broadcast demo");
   wcli.term->add("mp3", &mp3,         "\t<path> play mp3 from path");
   wcli.term->add("stop", &stop,         "\tstop song playback");
@@ -150,14 +155,15 @@ void setup() {
     Serial.println("==>[INFO] Time for initial setup over. Booting..\r\n");
 
   ota.setup("VATERP", "VATER32"); 
-  touchAttachInterrupt(T0, onTouchButton, touchThreshold);
-
   delay(100);
+  
+  touchAttachInterrupt(T0, onTouchButton, touchThreshold);
+  randomSeed(1);
 }
 
 void loop() {
-  wcli.loop();
   audio.loop();
-  processTouch();
+  wcli.loop();
   ota.loop();
+  processTouch();
 }
