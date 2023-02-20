@@ -1,4 +1,14 @@
-// Required Libraries (Download zips and add to the Arduino IDE library).
+/*******************************************************************
+ * Darth Vater panel 
+ * Author: @hpsaturn
+ * 2023
+ * 
+ * Required Libraries:
+ * ----------------------------------------------------------------
+ * You only need run PlatformIO, he will download them for you.
+ * Old Arduino IDE users: Download zips and add to IDE library.
+*******************************************************************/
+
 #include <Arduino.h>
 #include <ESP32WifiCLI.hpp> 
 #include <OTAHandler.h>
@@ -7,7 +17,7 @@
 #include <effects.hpp>
 #include <power.hpp>
 
-int volume = 15;
+int volume = 17;
 
 bool setup_mode = false;
 int setup_time = 10000;
@@ -15,19 +25,24 @@ bool first_run = true;
 
 bool touchDetected = false;
 void onTouchButton(){ touchDetected = true; }
-int  touchThreshold = 32;
+int  touchThreshold = 27;
 
-
+void touchth (String opts) {
+  maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
+  touchThreshold = operands.first().toInt();
+  Serial.printf("new touch button threshold\t: %i\r\n",touchThreshold);
+  wcli.setInt("ktouchth", touchThreshold);
+}
 
 void blink(String opts) {
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
   int bright = operands.first().toInt();
   int miliseconds = operands.second().toInt();
-  Serial.println("starting Adafruit demo..");
+  Serial.printf("starting strip demo..\r\n");
 
   if (bright >0 && bright<=255) {
     strip.setBrightness(bright);
-    Serial.printf("changed brightness to: %i\r\n", bright);
+    Serial.printf("changed brightness to\t: %i\r\n", bright);
   }
   guiDemo();
 }
@@ -60,7 +75,7 @@ void setVol (String opts){
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
   volume = operands.first().toInt();
   // Volume control.
-  volume = volume > 63 || volume == 0 ? 50 : volume;
+  volume = volume > 21 || volume == 0 ? 15 : volume;
   Serial.printf("volume = %d\r\n", volume);
 }
 
@@ -76,11 +91,9 @@ void processTouch(){
     String path = EFFECTDIR + effect;
     audioConnecttoSD(path.c_str());
     audioSetVolume(volume);
-    
+    guiDemo();
   }
 }
-
-
 
 void wcli_exit(String opts) {
   setup_time = 0;
@@ -97,8 +110,8 @@ void setup() {
   Serial.begin(115200); // Optional, you can init it on begin()
   Serial.flush();       // Only for showing the message on serial 
   delay(200);
-  guiInit();            // Initialize LED stripe to off
   initAudio();          // Audio drivers only
+  guiInit();            // Initialize LED stripe to off
 
   wcli.setSilentMode(true);
   wcli.begin();         // Alternatively, you can init with begin(115200) 
@@ -109,8 +122,9 @@ void setup() {
   wcli.term->add("blink", &blink,     "\t<brightness> Adafruit LEDs demo");
   wcli.term->add("vol", &setVol,      "\t<0-63> update volume of sound driver");
   wcli.term->add("radio", &radio,     "\t<optional url> starting radio broadcast demo");
-  wcli.term->add("mp3", &mp3,         "\t<path> play mp3 from path");
-  wcli.term->add("stop", &stop,         "\tstop song playback");
+  wcli.term->add("mp3", &mp3,         "\t<path> play mp3 from path. Into quotes");
+  wcli.term->add("stop", &stop,       "\tstop song playback.");
+  wcli.term->add("touchth", &touchth,       "\t<int 0-40> touch button threshold.");
   wcli.term->add("exit", &wcli_exit,  "\texit of the setup mode. AUTO EXIT in 10 seg! :)");
   wcli.term->add("setup", &wcli_setup,"\tTYPE THIS WORD to start to configure the device :D\n");
 
@@ -121,13 +135,15 @@ void setup() {
   Serial.println();
 
   if (setup_time == 0)
-    Serial.println("==>[INFO] Settings mode end. Booting..\r\n");
+    Serial.println("==>[INFO] Settings mode end. Booting..");
   else
-    Serial.println("==>[INFO] Time for initial setup over. Booting..\r\n");
+    Serial.println("==>[INFO] Time for initial setup over. Booting..");
 
   ota.setup("VATERP", "VATER32"); 
   delay(100);
-  
+
+  touchThreshold = wcli.getInt("touchth", 27);
+  Serial.printf("==>[INFO] Touch button threshold\t: %i\r\n", touchThreshold);
   touchAttachInterrupt(T0, onTouchButton, touchThreshold);
   randomSeed(1);
 }

@@ -1,10 +1,11 @@
 #include <Adafruit_NeoPixel.h>
 
 #define PIN 22
+#define NUM_LEDS 19
+#define BRIGHTNESS 20
 
-#define NUM_LEDS 60
-
-#define BRIGHTNESS 50
+bool guiIsRunning = false;
+int  loopCount = 0;
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRBW + NEO_KHZ800);
 
@@ -101,53 +102,42 @@ void rainbowFade2White(uint8_t wait, int rainbowLoops, int whiteLoops) {
         blueVal = blue(wheelVal) * float(fadeVal/fadeMax);
 
         strip.setPixelColor( i, strip.Color( redVal, greenVal, blueVal ) );
-
       }
-
       //First loop, fade in!
       if(k == 0 && fadeVal < fadeMax-1) {
-          fadeVal++;
+        fadeVal++;
       }
-
       //Last loop, fade out!
       else if(k == rainbowLoops - 1 && j > 255 - fadeMax ){
-          fadeVal--;
+        fadeVal--;
       }
-
-        strip.show();
-        delay(wait);
+      strip.show();
+      delay(wait);
     }
   
   }
 
-
-
   delay(500);
-
 
   for(int k = 0 ; k < whiteLoops ; k ++){
 
     for(int j = 0; j < 256 ; j++){
+      for(uint16_t i=0; i < strip.numPixels(); i++) {
+        strip.setPixelColor(i, strip.Color(0,0,0, neopix_gamma[j] ) );
+      }
+      strip.show();
+    }
 
-        for(uint16_t i=0; i < strip.numPixels(); i++) {
-            strip.setPixelColor(i, strip.Color(0,0,0, neopix_gamma[j] ) );
-          }
-          strip.show();
-        }
+    delay(2000);
 
-        delay(2000);
     for(int j = 255; j >= 0 ; j--){
-
-        for(uint16_t i=0; i < strip.numPixels(); i++) {
-            strip.setPixelColor(i, strip.Color(0,0,0, neopix_gamma[j] ) );
-          }
-          strip.show();
-        }
+      for(uint16_t i=0; i < strip.numPixels(); i++) {
+        strip.setPixelColor(i, strip.Color(0,0,0, neopix_gamma[j] ) );
+      }
+      strip.show();
+    }
   }
-
   delay(500);
-
-
 }
 
 void whiteOverRainbow(uint8_t wait, uint8_t whiteSpeed, uint8_t whiteLength ) {
@@ -228,26 +218,47 @@ void rainbow(uint8_t wait) {
   }
 }
 
-void guiInit() {
-  // End of trinket special code
-  strip.setBrightness(BRIGHTNESS);
-  strip.begin();
-  strip.show(); // Initialize all pixels to 'off'
-}
-
-void guiDemo() {
+void demoTask(void * param) {
   // Some example procedures showing how to display to the pixels:
-  colorWipe(strip.Color(255, 0, 0), 50); // Red
-  colorWipe(strip.Color(0, 255, 0), 50); // Green
-  colorWipe(strip.Color(0, 0, 255), 50); // Blue
-  colorWipe(strip.Color(0, 0, 0, 255), 50); // White
+  // colorWipe(strip.Color(255, 0, 0), 50); // Red
+  // colorWipe(strip.Color(0, 255, 0), 50); // Green
+  // colorWipe(strip.Color(0, 0, 255), 50); // Blue
+  // colorWipe(strip.Color(0, 0, 0, 255), 50); // White
 
-  whiteOverRainbow(20,75,5);  
-
-  pulseWhite(5); 
+  // pulseWhite(5); 
 
   // fullWhite();
   // delay(2000);
 
-  rainbowFade2White(3,3,1);
+  // Serial.println("pulseWhite demo:");
+  pulseWhite(5);  
+  loopCount = 0;
+  delay(1000);
+  // Serial.println("rainbowFade2White demo:");
+  while(loopCount++<3) rainbowFade2White(3,3,1);
+  loopCount = 0;
+  guiIsRunning = false;
+  vTaskDelete( NULL );
 }
+
+void guiDemo() {
+  if (guiIsRunning) return;
+  xTaskCreate(
+    demoTask,         /* Task function. */
+    "demoTask",       /* String with name of task. */
+    10000,            /* Stack size in bytes. */
+    NULL,             /* Parameter passed as input of the task */
+    1,                /* Priority of the task. */
+    NULL            /* Task handle. */
+  );
+  guiIsRunning = true;
+}
+
+void guiInit() {
+  // End of trinket special code
+  strip.setBrightness(BRIGHTNESS);
+  strip.begin();
+  strip.show(); // Initialize all pixels to 'off' 
+  guiDemo(); 
+}
+

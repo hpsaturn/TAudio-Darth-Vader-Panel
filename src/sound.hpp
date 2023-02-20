@@ -163,14 +163,14 @@ void initAudio() {
   delay (100);
   audioConnecttoSD("/vader/breathing.mp3");
   // Volume control.
-  dac.setSPKvol(63); // Change volume here for board speaker output (Max 63).
-  dac.setHPvol(63, 63); // Change volume here for headphone jack left, right channel.
+  dac.setSPKvol(55); // Change volume here for board speaker output (Max 63).
+  dac.setHPvol(55, 55); // Change volume here for headphone jack left, right channel.
 
 }
 
 // optional methods (we could comment this)
 void audio_info(const char *info){
-    Serial.print("info        "); Serial.println(info);
+  Serial.print("info        "); Serial.println(info);
 }
 // void audio_id3data(const char *info){  //id3 metadata
 //     Serial.print("id3data     ");Serial.println(info);
