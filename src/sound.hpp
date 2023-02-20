@@ -163,8 +163,8 @@ void initAudio() {
   delay (100);
   audioConnecttoSD("/vader/breathing.mp3");
   // Volume control.
-  dac.setSPKvol(55); // Change volume here for board speaker output (Max 63).
-  dac.setHPvol(55, 55); // Change volume here for headphone jack left, right channel.
+  dac.setSPKvol(50); // Change volume here for board speaker output (Max 63).
+  dac.setHPvol(50, 50); // Change volume here for headphone jack left, right channel.
 
 }
 
