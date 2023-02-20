@@ -5,10 +5,9 @@
 #include <gui.hpp>
 #include <sound.hpp>
 #include <effects.hpp>
+#include <power.hpp>
 
-#define TAG "WM8978"
-
-int volume = 50;
+int volume = 15;
 
 bool setup_mode = false;
 int setup_time = 10000;
@@ -18,29 +17,7 @@ bool touchDetected = false;
 void onTouchButton(){ touchDetected = true; }
 int  touchThreshold = 32;
 
-void gotToSuspend(int type, int seconds) {
-    delay(8);  // waiting for writing msg on serial
-    //esp_deep_sleep(1000000LL * DEEP_SLEEP_DURATION);
-    esp_sleep_enable_timer_wakeup(1000000LL * seconds);
-    if (type == 0) esp_deep_sleep_start();
-    else esp_light_sleep_start(); 
-}
 
-void sleep(String opts) {
-  maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
-  int seconds = operands.second().toInt();
-  if(operands.first().equals("deep")) {
-    Serial.println("\ndeep suspending..");
-    gotToSuspend(0, seconds);
-  }
-  else if(operands.first().equals("light")) {
-    Serial.println("\nlight suspending..");
-    gotToSuspend(1, seconds);
-  }
-  else {
-    Serial.println("sleep: invalid option");
-  }
-}
 
 void blink(String opts) {
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
@@ -55,22 +32,17 @@ void blink(String opts) {
   guiDemo();
 }
 
-void loadVolume() {
-  audio.setVolume(21); 
-  dac.setSPKvol(volume);     // for board speaker output (Max 63).
-  dac.setHPvol(volume, volume);  // for headphone jack left, right channel.
-}
 
 void radio(String opts) {
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
   String url = operands.first();
   int volume = operands.first().toInt();
   ESP_LOGI(TAG, "Connected. Starting MP3...");
-  loadVolume();
+  audioSetVolume(volume);
   if (url.isEmpty())
-    audio.connecttohost("http://hestia2.cdnstream.com/1458_128"); 
+    audioConnecttohost("http://hestia2.cdnstream.com/1458_128"); 
   else
-    audio.connecttohost(url.c_str()); 
+    audioConnecttohost(url.c_str()); 
 }
 
 void mp3 (String opts){
@@ -80,8 +52,8 @@ void mp3 (String opts){
     return;
   }
   maschinendeck::Pair<String, String> operands = maschinendeck::SerialTerminal::ParseCommand(opts);
-  loadVolume();
-  audio.connecttoFS(SD, path.c_str());
+  audioConnecttoSD(path.c_str());
+  audioSetVolume(volume);
 }
 
 void setVol (String opts){
@@ -89,7 +61,7 @@ void setVol (String opts){
   volume = operands.first().toInt();
   // Volume control.
   volume = volume > 63 || volume == 0 ? 50 : volume;
-  loadVolume();
+  Serial.printf("volume = %d\r\n", volume);
 }
 
 void stop (String opts){
@@ -102,14 +74,13 @@ void processTouch(){
     if(audio.isRunning()) return;
     String effect = effects[random(EFCOUNT)];
     String path = EFFECTDIR + effect;
-    loadVolume();
-    audio.connecttoFS(SD, path.c_str());
+    audioConnecttoSD(path.c_str());
+    audioSetVolume(volume);
+    
   }
 }
 
-void reboot(String opts){
-  ESP.restart();
-}
+
 
 void wcli_exit(String opts) {
   setup_time = 0;
@@ -162,7 +133,6 @@ void setup() {
 }
 
 void loop() {
-  audio.loop();
   wcli.loop();
   ota.loop();
   processTouch();
