@@ -4,6 +4,7 @@
 #include <OTAHandler.h>
 #include <gui.hpp>
 #include <sound.hpp>
+#include <effects.hpp>
 
 #define TAG "WM8978"
 
@@ -91,7 +92,12 @@ void processTouch(){
   if (touchDetected){
     touchDetected = false;
     if(audio.isRunning()) return;
-    audio.connecttoFS(SD, "/vader/breathing.mp3");
+    audio.setVolume(21);  
+    String effect = effects[random(EFCOUNT)];
+    String path = EFFECTDIR + effect;
+    audio.connecttoFS(SD, path.c_str());
+    dac.setSPKvol(50);     // for board speaker output (Max 63).
+    dac.setHPvol(50, 50);  // for headphone jack left, right channel.
   }
 }
 
@@ -116,6 +122,7 @@ void setup() {
   delay(100);
   guiInit();            // Initialize LED stripe to off
   initAudio();          // Audio drivers only
+  randomSeed(analogRead(0));
 
   wcli.setSilentMode(true);
   wcli.begin();         // Alternatively, you can init with begin(115200) 
@@ -142,10 +149,10 @@ void setup() {
   else
     Serial.println("==>[INFO] Time for initial setup over. Booting..\r\n");
 
-  ota.setup("VATERP", "VATER32");
-  delay(100);
-  
+  ota.setup("VATERP", "VATER32"); 
   touchAttachInterrupt(T0, onTouchButton, touchThreshold);
+
+  delay(100);
 }
 
 void loop() {
