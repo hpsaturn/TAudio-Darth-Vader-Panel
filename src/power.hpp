@@ -27,7 +27,7 @@ void processShutdown() {
     loopts = millis();
     Serial.println("\nshutdown by inactivity\n");
     delay(100);
-    panelShutdown();  // issue: https://github.com/LilyGO/TTGO-TAudio/issues/7 
+    // panelShutdown();  // issue: https://github.com/LilyGO/TTGO-TAudio/issues/7 
                       // After 35 sec the board turn off but we don't wakeup :(
   }
 }

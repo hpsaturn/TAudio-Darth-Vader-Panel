@@ -56,6 +56,10 @@ Press enter and type help. You should see the configuration commands for setup y
 
 ![CLI Audio commands](pics/cli_audio_commands.jpg)
 
+## Demo
+
+https://user-images.githubusercontent.com/423856/221437480-ac313f3f-cbc1-4a08-a20b-a76649b9068e.mp4
+
 ## Credits
 
 Original box unfinished from [Thingiverse @alexgeiger](https://www.thingiverse.com/thing:2048281/files)
