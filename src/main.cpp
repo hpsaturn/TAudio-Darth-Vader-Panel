@@ -114,7 +114,7 @@ void setup() {
   guiInit();            // Initialize LED stripe to off
   delay(100);
 
-  wcli.disableConnectInBoot(); 
+  // wcli.disableConnectInBoot(); 
   wcli.setSilentMode(true);
   wcli.begin();         // Alternatively, you can init with begin(115200) 
 
@@ -130,6 +130,8 @@ void setup() {
   wcli.term->add("touchth", &touchth,        "\t<int 0-40> touch button threshold.");
   wcli.term->add("exit", &wcli_exit,         "\texit of the setup mode. AUTO EXIT in 10 seg! :)");
   wcli.term->add("setup", &wcli_setup,       "\tTYPE THIS WORD to start to configure the device :D\n");
+
+  // turnOffHardware(); // only for production
 
   // Configuration loop in setup:
   // 10 seconds for reconfiguration (first use case or fail-safe mode for example)
@@ -151,6 +153,7 @@ void setup() {
   touchThreshold = wcli.getInt("touchth", 27);
   Serial.printf("==>[INFO] Touch button threshold\t: %i\r\n", touchThreshold);
   touchAttachInterrupt(T0, onTouchButton, touchThreshold);
+  esp_sleep_enable_touchpad_wakeup();
   randomSeed(1);
 }
 

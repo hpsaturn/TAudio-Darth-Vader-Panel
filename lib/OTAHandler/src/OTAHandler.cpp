@@ -25,7 +25,7 @@ void OTAHandler::setup(const char* ESP_ID, const char* ESP_PASS) {
                 ota.getInstance()->m_pOTAHandlerCallbacks->onEnd();
         })
         .onProgress([](unsigned int progress, unsigned int total) {
-            Serial.printf("-->[OTA] Progress: %u%%\r", (progress / (total / 100)));            
+            Serial.printf("-->[OTA] Progress: \t%u%%         \r", (progress / (total / 100)));            
             if(ota.getInstance()->m_pOTAHandlerCallbacks!=nullptr)
                 ota.getInstance()->m_pOTAHandlerCallbacks->onProgress(progress,total);
         })
